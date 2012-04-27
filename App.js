@@ -5,7 +5,6 @@ Ext.define('BurnChartApp', {
         cls:'burnchart',
 
         launch: function () {
-            console.log( "Launch called" );
             var query = {
                 find:{
                     _Type:'HierarchicalRequirement',

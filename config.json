@@ -3,8 +3,6 @@
     "className":"BurnChartApp",
     "sdk":"2.0p",
     "javascript":[
-        "lumenize.js",
-        "HighChart.js",
         "burncalculator.js",
         "BurnChartBuilder.js",
         "App.js"

@@ -13,7 +13,7 @@ task :new, :app_name, :sdk_version do |t, args|
 end
 
 desc "Build a deployable app which includes all JavaScript and CSS resources inline"
-task :build => [:jslint] do
+task :build do
   Dir.chdir(Rake.original_dir)
   Rally::AppSdk::AppTemplateBuilder.new(get_config_from_file).build_app_html
 end
@@ -371,8 +371,12 @@ HTML_DEBUG_TPL = <<-END
 
     <script type="text/javascript" src="APP_SDK_PATH"></script>
     
-    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
     <script type="text/javascript" src="http://code.highcharts.com/2.1.6/highcharts.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/JoeKuan/Highcharts_ExtJs_4/master/Chart/ux/HighChart.js"></script>
+    
+    <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/lumenize/deploy/lumenize.js"></script>
+    
     <script type="text/javascript">
     
         Rally.onReady(function() {
@@ -400,9 +404,12 @@ HTML_TPL = <<-END
     
     <script type="text/javascript" src="APP_SDK_PATH"></script>
     
-    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
     <script type="text/javascript" src="http://code.highcharts.com/2.1.6/highcharts.js"></script>
-
+    <script type="text/javascript" src="https://raw.github.com/JoeKuan/Highcharts_ExtJs_4/master/Chart/ux/HighChart.js"></script>
+    
+    <script type="text/javascript" src="https://raw.github.com/lmaccherone/Lumenize/master/deploy/lumenize.js"></script>
+    
     
     <script type="text/javascript">
         Rally.onReady(function() {
