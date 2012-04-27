@@ -1,8 +1,10 @@
 {
-    "name": "LookbackApp",
-    "className": "CustomApp",
+    "name": "BurnChartApp",
+    "className": "BurnChartApp",
     "sdk": "2.0p",
-    "javascript": [
+    "javascript": [   
+        "burncalculator.js",
+		"BurnChartBuilder.js",		
         "App.js"
     ],
     "css": [
