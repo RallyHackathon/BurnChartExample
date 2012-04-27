@@ -21,9 +21,11 @@
                 },
                 success:function (response) {
                     var me = this;
-                    this.getAcceptedScheduleStateOid(function(acceptedScheduleStateOid){
-                        me._afterQueryReturned(JSON.parse(response.responseText), acceptedScheduleStateOid, buildFinishedCallback);
-                    });
+                    console.log(response.responseText);
+                    var callback = function(acceptedScheduleStateOid, releasedScheduleStateOid){
+                        me._afterQueryReturned(JSON.parse(response.responseText), acceptedScheduleStateOid, releasedScheduleStateOid, buildFinishedCallback);
+                    };
+                    this.getAcceptedScheduleStateOid(callback);
                 },
                 scope:this
             });
@@ -39,13 +41,29 @@
                     Authorization:'Basic dG9vbGJvdEByYWxseWRldi5jb206YWJjMTIzISE='
                 },
                 success:function (response) {
-                    callback(JSON.parse(response.responseText).Results[0].ScheduleState);
+                    this.getReleasedScheduleStateOid(JSON.parse(response.responseText).Results[0].ScheduleState, callback);
                 },
                 scope:this
             });
         },
-        _afterQueryReturned:function (queryResultsData, acceptedScheduleStateOid, buildFinishedCallback) {
-            console.log( queryResultsData );
+        getReleasedScheduleStateOid:function (acceptedScheduleStateOid, callback) {
+            var workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
+            var project = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.project._ref);
+            var analyticsScheduleStateQuery = "find={ScheduleState:'Released',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
+            Ext.Ajax.request({
+                url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + analyticsScheduleStateQuery,
+                method:"GET",
+                headers:{
+                    Authorization:'Basic dG9vbGJvdEByYWxseWRldi5jb206YWJjMTIzISE='
+                },
+                success:function (response) {
+                    callback(acceptedScheduleStateOid, JSON.parse(response.responseText).Results[0].ScheduleState);
+                },
+                scope:this
+            });
+        },
+        _afterQueryReturned:function (queryResultsData, acceptedScheduleStateOid, releasedScheduleStateOid, buildFinishedCallback) {
+            console.log(acceptedScheduleStateOid);
             var lumenize = require('./lumenize');
             var contextWorkspaceConfig = Rally.environment.getContext().context.scope.workspace.WorkspaceConfiguration;
             var workspaceConfiguration = {
@@ -71,8 +89,8 @@
                     'scope'
                 ],
 
-                acceptedStates:[acceptedScheduleStateOid],
-                start:"2012-02-18T00:00:00.000Z",
+                acceptedStates:[acceptedScheduleStateOid, releasedScheduleStateOid],
+                start:"2012-04-10T15:00:00Z",
                 // Calculated either by inspecting results or via configuration. pastEnd is automatically the last date in results
                 holidays:[
                     {
@@ -91,10 +109,10 @@
                     }
                 ]
             };
-            lumenize.ChartTime.setTZPath("");
 
+            lumenize.ChartTime.setTZPath("");
             var tscResults = burnCalculator(queryResultsData.Results, burnConfig);
-            //var tscResults = burnCalculator(results, config);
+
             var categories = tscResults.categories;
             var series = tscResults.series;
             console.log( series );
