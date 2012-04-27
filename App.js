@@ -18,7 +18,7 @@ Ext.define('BurnChartApp', {
                 panel.add(chartConfiguration);
             };
 
-            Rally.app.analytics.BurnChartBuilder.build(query, callback);
+            new Rally.app.analytics.BurnChartBuilder().build(query, callback);
         }
 });
 		
