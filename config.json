@@ -1,13 +1,15 @@
 {
-    "name": "BurnChartApp",
-    "className": "BurnChartApp",
-    "sdk": "2.0p",
-    "javascript": [   
+    "name":"BurnChartApp",
+    "className":"BurnChartApp",
+    "sdk":"2.0p",
+    "javascript":[
+        "lumenize.js",
+        "HighChart.js",
         "burncalculator.js",
-		"BurnChartBuilder.js",		
+        "BurnChartBuilder.js",
         "App.js"
     ],
-    "css": [
+    "css":[
         "app.css"
     ]
 }

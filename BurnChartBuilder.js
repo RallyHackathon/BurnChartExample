@@ -10,6 +10,7 @@
                 var requestedFields = Ext.Array.union(['_ValidFrom', '_ValidTo', 'ObjectID'], requestedQuery.fields ? requestedQuery.fields : []);
 
                 var workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
+                console.log( "Ajax" );
                 Ext.Ajax.request({
                     url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + Ext.Object.toQueryString(query) + "&fields=" + JSON.stringify(requestedFields),
                     method:"GET",
@@ -34,7 +35,7 @@
                     ReleaseEstimateUnitName:'Points',
                     TaskUnitName:'Hours',
                     TimeTrackerEnabled:true,
-                    //TimeZone:'America/Denver',
+                    TimeZone:'America/Denver',
                     WorkDays:'Sunday,Monday,Tuesday,Wednesday,Thursday,Friday' // They work on Sundays
                 };
                 var burnConfig = {
@@ -52,6 +53,7 @@
                         {year:2011, month:1, day:5}
                     ]
                 };
+                lumenize.ChartTime.setTZPath("");
                 var tscResults = burnCalculator(queryResultsData.Results, burnConfig);
                 var categories = tscResults.categories;
                 var series = tscResults.series;
