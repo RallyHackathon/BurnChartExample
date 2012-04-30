@@ -9,8 +9,8 @@
             this.chartTitle = chartTitle;
             this.buildFinishedCallback = buildFinishedCallback;
             this.query = {
-                find: Ext.encode(requestedQuery.find),
-                pagesize: 10000
+                find:Ext.encode(requestedQuery.find),
+                pagesize:10000
             };
             this.requestedFields = Ext.Array.union(['_ValidFrom', '_ValidTo', 'ObjectID', 'ScheduleState'], requestedQuery.fields ? requestedQuery.fields : []);
 
@@ -29,11 +29,11 @@
 
         },
 
-        _afterAllScheduleStateOidsReturned: function() {
+        _afterAllScheduleStateOidsReturned:function () {
             this._queryAnalyticsApi();
         },
 
-        _queryAnalyticsApi: function() {
+        _queryAnalyticsApi:function () {
             Ext.Ajax.request({
                 url:"https://rally1.rallydev.com/analytics/1.27/" + this.workspace + "/artifact/snapshot/query.js?" + Ext.Object.toQueryString(this.query) +
                     "&fields=" + JSON.stringify(this.requestedFields) + "&sort={_ValidFrom:1}",
@@ -54,7 +54,10 @@
                 url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + analyticsScheduleStateQuery,
                 method:"GET",
                 success:function (response) {
-                    this.acceptedScheduleStateOid = JSON.parse(response.responseText).Results[0].ScheduleState;
+                    var results = JSON.parse(response.responseText).Results;
+                    if (results.length > 0) {
+                        this.acceptedScheduleStateOid = results[0].ScheduleState;
+                    }
                     this.markUpdated('BurnChartAcceptedScheduleState', this._afterAllScheduleStateOidsReturned, this);
                 },
                 scope:this
@@ -93,6 +96,15 @@
                 WorkDays:'Sunday,Monday,Tuesday,Wednesday,Thursday,Friday'
                 // They work on Sundays
             };
+
+            var acceptedStates = [];
+            if( this.acceptedScheduleStateOid ){
+                acceptedStates.push( this.acceptedScheduleStateOid );
+            }
+            if( this.releasedScheduleStateOid ){
+                acceptedStates.push( this.releasedScheduleStateOid );
+            }
+
             var burnConfig = {
                 workspaceConfiguration:workspaceConfiguration,
                 upSeriesType:'Story Count',
@@ -102,7 +114,7 @@
                     'scope'
                 ],
 
-                acceptedStates:[this.acceptedScheduleStateOid, this.releasedScheduleStateOid],
+                acceptedStates:acceptedStates,
                 start:"2012-03-01T00:00:00Z",
                 // Calculated either by inspecting results or via configuration. pastEnd is automatically the last date in results
                 holidays:[
@@ -136,7 +148,7 @@
                     enabled:false
                 },
                 title:{
-                    text: this.chartTitle
+                    text:this.chartTitle
                 },
                 subtitle:{
                     text:''
