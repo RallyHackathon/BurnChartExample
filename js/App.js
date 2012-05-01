@@ -9,10 +9,11 @@ Ext.define('BurnChartApp', {
     },
     appName:'Burn Chart',
     cls:'burnchart',
-    items: [
-        {
+
+    initComponent: function() {
+        this.callParent(arguments);
+        var piTree = Ext.widget('rallytree', {
             id: 'rallytree1',
-            xtype: 'rallytree',
             width: 400,
             height: '100%',
             topLevelModel: 'PortfolioItem',
@@ -26,16 +27,29 @@ Ext.define('BurnChartApp', {
                     return 'Parent';
                 }
             },
-//            topLevelStoreConfig: {
-//                listeners: {
-//                    beforeload: function(tree) {
-//                        tree.getEl().mask();
-//                    },
-//                    load: function(tree) {
-//                        tree.getEl().unmask();
-//                    }
-//                }
-//            },
+            listeners: {
+                add: this._onTreeRowAdd,
+                scope: this
+            },
+            topLevelStoreConfig: {
+                listeners: {
+                    beforeload: function(store) {
+                        this.getEl().mask('Loading...');
+                    },
+                    load: function(store, records) {
+                        if (records.length > 0) {
+                            this.add({
+                                id: 'chartCmp',
+                                xtype: 'component',
+                                flex: 1,
+                                html: '<div>Choose a Portfolio Item from the list to see its burn chart.</div>'
+                            })
+                        }
+                        this.getEl().unmask();
+                    },
+                    scope: this
+                }
+            },
             //override
             drawEmptyMsg: function(){
                 if (Ext.getCmp('chartCmp')) {
@@ -46,19 +60,11 @@ Ext.define('BurnChartApp', {
                     html: '<p> No Portfolio Items within the currently scoped project(s).</p>'
                 });
             }
-        },
-        {
-            id: 'chartCmp',
-            xtype: 'component',
-            html: '<div>Choose a Portfolio Item from the list to see its burn chart.</div>'
-        }
+        });
+        this.add(piTree);
 
-    ],
-
-    initComponent: function() {
-        this.callParent(arguments);
         //add the click handler to tree rows when they are added to the tree
-        this.down('#rallytree1').on('add', this._onTreeRowAdd, this);
+        //this.down('#rallytree1').on('add', this._onTreeRowAdd, this);
     },
 
     launch: function () {
@@ -122,6 +128,7 @@ Ext.define('BurnChartApp', {
     _refreshChart: function(treeRowRecord, itemId, title) {
         this.selectedRowRecord = treeRowRecord;
         this.chartQuery.find._ItemHierarchy = itemId;
+        this.down('#chartCmp').getEl().mask('Loading...');
         this.chartConfigBuilder.build(this.chartQuery, title, Ext.bind(this._afterChartConfigBuilt, this));
     }
 });
