@@ -8,6 +8,7 @@
 
             this.chartTitle = chartTitle;
             this.buildFinishedCallback = buildFinishedCallback;
+            this.startTime = requestedQuery.find._ValidFrom.$gte; //TODO: better way to get/set this
             this.query = {
                 find:Ext.encode(requestedQuery.find),
                 pagesize:10000
@@ -16,14 +17,25 @@
 
             this.workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
 
-            if (this.acceptedScheduleStateOid && this.releasedScheduleStateOid) {
+            if (this.scheduleStateOidAccepted && this.scheduleStateOidReleased) {
                 this._queryAnalyticsApi();
             } else {
-                if (!this.acceptedScheduleStateOid) {
-                    this.acceptedScheduleStateOid = this.getAcceptedScheduleStateOid();
+                //mark this component that its updating multiple ajax requests. See Rally.util.ComponentUpdatable mixin.
+                var acceptedReqName = 'GetAcceptedScheduleStateOid';
+                var releasedReqName = 'GetReleasedScheduleStateOid';
+                //mark which requests need to be made
+                if (!this.scheduleStateOidAccepted) {
+                    this.markUpdating(acceptedReqName);
                 }
-                if (!this.releasedScheduleStateOid) {
-                    this.releasedScheduleStateOid = this.getReleasedScheduleStateOid();
+                if (!this.scheduleStateOidReleased) {
+                    this.markUpdating(releasedReqName);
+                }
+                //now make requests
+                if (!this.scheduleStateOidAccepted) {
+                    this._getScheduleStateOid('Accepted', acceptedReqName);
+                }
+                if (!this.scheduleStateOidReleased) {
+                    this._getScheduleStateOid('Released', releasedReqName);
                 }
             }
 
@@ -45,168 +57,161 @@
             });
         },
 
-        getAcceptedScheduleStateOid:function (callback) {
-            this.markUpdating('BurnChartAcceptedScheduleState');
+        _getScheduleStateOid:function (state, reqName) {
             var workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
             var project = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.project._ref);
-            var analyticsScheduleStateQuery = "find={ScheduleState:'Accepted',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
+            var analyticsScheduleStateQuery = "find={ScheduleState:'" + state + "',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
             Ext.Ajax.request({
                 url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + analyticsScheduleStateQuery,
                 method:"GET",
                 success:function (response) {
                     var results = JSON.parse(response.responseText).Results;
                     if (results.length > 0) {
-                        this.acceptedScheduleStateOid = results[0].ScheduleState;
+                        this['scheduleStateOid' + state] = results[0].ScheduleState;
                     }
-                    this.markUpdated('BurnChartAcceptedScheduleState', this._afterAllScheduleStateOidsReturned, this);
+                    this.markUpdated(reqName, this._afterAllScheduleStateOidsReturned, this);
                 },
                 scope:this
             });
         },
 
-        getReleasedScheduleStateOid:function (acceptedScheduleStateOid, callback) {
-            this.markUpdating('BurnChartReleasedScheduleState');
-            var workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
-            var project = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.project._ref);
-            var analyticsScheduleStateQuery = "find={ScheduleState:'Released',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
-            Ext.Ajax.request({
-                url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + analyticsScheduleStateQuery,
-                method:"GET",
-                success:function (response) {
-                    this.releasedScheduleStateOid = JSON.parse(response.responseText).Results[0].ScheduleState;
-                    this.markUpdated('BurnChartReleasedScheduleState', this._afterAllScheduleStateOidsReturned, this);
-                },
-                scope:this
-            });
-        },
         _afterQueryReturned:function (queryResultsData) {
+            if (queryResultsData.TotalResultCount > 0) {
+                this._buildChartConfigAndCallback(queryResultsData);
+            } else {
+                this.buildFinishedCallback(false);
+            }
+        },
+
+        _buildChartConfigAndCallback: function(queryResultsData) {
             var lumenize = require('./lumenize');
-            var contextWorkspaceConfig = Rally.environment.getContext().context.scope.workspace.WorkspaceConfiguration;
-            var workspaceConfiguration = {
-                // Need to grab from Rally for this user
-                DateFormat:contextWorkspaceConfig.DateFormat,
-                DateTimeFormat:contextWorkspaceConfig.DateTimeFormat,
-                //TODO: Have context code fetch these values for the workspace config, instead of hardcoding them
-                IterationEstimateUnitName:'Points',
-                // !TODO: Should we use this?
-                ReleaseEstimateUnitName:'Points',
-                TaskUnitName:'Hours',
-                TimeTrackerEnabled:true,
-                TimeZone:'America/Denver',
-                WorkDays:'Sunday,Monday,Tuesday,Wednesday,Thursday,Friday'
-                // They work on Sundays
-            };
+                var contextWorkspaceConfig = Rally.environment.getContext().context.scope.workspace.WorkspaceConfiguration;
+                var workspaceConfiguration = {
+                    // Need to grab from Rally for this user
+                    DateFormat:contextWorkspaceConfig.DateFormat,
+                    DateTimeFormat:contextWorkspaceConfig.DateTimeFormat,
+                    //TODO: Have context code fetch these values for the workspace config, instead of hardcoding them
+                    IterationEstimateUnitName:'Points',
+                    // !TODO: Should we use this?
+                    ReleaseEstimateUnitName:'Points',
+                    TaskUnitName:'Hours',
+                    TimeTrackerEnabled:true,
+                    TimeZone:'America/Denver',
+                    WorkDays:'Sunday,Monday,Tuesday,Wednesday,Thursday,Friday'
+                    // They work on Sundays
+                };
 
-            var acceptedStates = [];
-            if( this.acceptedScheduleStateOid ){
-                acceptedStates.push( this.acceptedScheduleStateOid );
-            }
-            if( this.releasedScheduleStateOid ){
-                acceptedStates.push( this.releasedScheduleStateOid );
-            }
+                var acceptedStates = [];
+                if( this.scheduleStateOidAccepted ){
+                    acceptedStates.push( this.scheduleStateOidAccepted );
+                }
+                if( this.scheduleStateOidReleased ){
+                    acceptedStates.push( this.scheduleStateOidReleased );
+                }
 
-            var burnConfig = {
-                workspaceConfiguration:workspaceConfiguration,
-                upSeriesType:'Story Count',
-                // 'Points' or 'Story Count'
-                series:[
-                    'up',
-                    'scope'
-                ],
+                var burnConfig = {
+                    workspaceConfiguration:workspaceConfiguration,
+                    upSeriesType:'Story Count',
+                    // 'Points' or 'Story Count'
+                    series:[
+                        'up',
+                        'scope'
+                    ],
 
-                acceptedStates:acceptedStates,
-                start:"2012-03-01T00:00:00Z",
-                // Calculated either by inspecting results or via configuration. pastEnd is automatically the last date in results
-                holidays:[
-                    {
-                        month:12,
-                        day:25
-                    },
-                    {
-                        year:2011,
-                        month:11,
-                        day:26
-                    },
-                    {
-                        year:2011,
-                        month:1,
-                        day:5
-                    }
-                ]
-            };
-
-            lumenize.ChartTime.setTZPath("");
-            var tscResults = burnCalculator(queryResultsData.Results, burnConfig);
-
-            var categories = tscResults.categories;
-            var series = tscResults.series;
-            var chartConfiguration = {
-                chart:{
-                    defaultSeriesType:'column'
-                },
-                credits:{
-                    enabled:false
-                },
-                title:{
-                    text:this.chartTitle
-                },
-                subtitle:{
-                    text:''
-                },
-                xAxis:{
-                    categories:categories,
-                    tickmarkPlacement:'on',
-                    tickInterval:Math.floor(categories.length / 13) + 1,
-                    // set as a function of the length of categories
-                    title:{
-                        enabled:false
-                    }
-                },
-                yAxis:[
-                    {
-                        title:{
-                            text:'Hours'
+                    acceptedStates:acceptedStates,
+                    start:this.startTime,
+                    // Calculated either by inspecting results or via configuration. pastEnd is automatically the last date in results
+                    holidays:[
+                        {
+                            month:12,
+                            day:25
                         },
-                        labels:{
-                            formatter:function () {
-                                return this.value / 1;
-                            }
+                        {
+                            year:2011,
+                            month:11,
+                            day:26
                         },
-                        min:0
-                    },
-                    {
-                        title:{
-                            text:burnConfig.upSeriesType
-                        },
-                        opposite:true,
-                        labels:{
-                            formatter:function () {
-                                return this.value / 1;
-                            }
-                        },
-                        min:0
-                    }
-                ],
-                tooltip:{
-                    formatter:function () {
-                        return '' + this.x + '<br />' + this.series.name + ': ' + this.y;
-                    }
-                },
-                plotOptions:{
-                    column:{
-                        stacking:null,
-                        lineColor:'#666666',
-                        lineWidth:1,
-                        marker:{
-                            lineWidth:1,
-                            lineColor:'#666666'
+                        {
+                            year:2011,
+                            month:1,
+                            day:5
                         }
-                    }
-                },
-                series:series
-            };
+                    ]
+                };
 
-            this.buildFinishedCallback(chartConfiguration);
+                lumenize.ChartTime.setTZPath("");
+                var tscResults = burnCalculator(queryResultsData.Results, burnConfig);
+
+                var categories = tscResults.categories;
+                var series = tscResults.series;
+                var chartConfiguration = {
+                    chart:{
+                        defaultSeriesType:'column',
+                        zoomType: 'xy'
+                    },
+                    credits:{
+                        enabled:false
+                    },
+                    title:{
+                        text:this.chartTitle
+                    },
+                    subtitle:{
+                        text:''
+                    },
+                    xAxis:{
+                        categories:categories,
+                        tickmarkPlacement:'on',
+                        tickInterval:Math.floor(categories.length / 13) + 1,
+                        // set as a function of the length of categories
+                        title:{
+                            enabled:false
+                        }
+                    },
+                    yAxis:[
+                        {
+                            title:{
+                                text:'Hours'
+                            },
+                            labels:{
+                                formatter:function () {
+                                    return this.value / 1;
+                                }
+                            },
+                            min:0
+                        },
+                        {
+                            title:{
+                                text:burnConfig.upSeriesType
+                            },
+                            opposite:true,
+                            labels:{
+                                formatter:function () {
+                                    return this.value / 1;
+                                }
+                            },
+                            min:0
+                        }
+                    ],
+                    tooltip:{
+                        formatter:function () {
+                            return '' + this.x + '<br />' + this.series.name + ': ' + this.y;
+                        }
+                    },
+                    plotOptions:{
+                        column:{
+                            stacking:null,
+                            lineColor:'#666666',
+                            lineWidth:1,
+                            marker:{
+                                lineWidth:1,
+                                lineColor:'#666666'
+                            }
+                        }
+                    },
+                    series:series
+                };
+
+                this.buildFinishedCallback(true, chartConfiguration);
         }
     });
 })();

@@ -25,26 +25,50 @@ Ext.define('BurnChartApp', {
                 if(record.get('Children') && record.get('Children').length > 0){
                     return 'Parent';
                 }
+            },
+//            topLevelStoreConfig: {
+//                listeners: {
+//                    beforeload: function(tree) {
+//                        tree.getEl().mask();
+//                    },
+//                    load: function(tree) {
+//                        tree.getEl().unmask();
+//                    }
+//                }
+//            },
+            //override
+            drawEmptyMsg: function(){
+                if (Ext.getCmp('chartCmp')) {
+                    Ext.getCmp('chartCmp').destroy();
+                }
+                this.add({
+                    xtype: 'component',
+                    html: '<p> No Portfolio Items within the currently scoped project(s).</p>'
+                });
             }
+        },
+        {
+            id: 'chartCmp',
+            xtype: 'component',
+            html: '<div>Choose a Portfolio Item from the list to see its burn chart.</div>'
         }
 
     ],
 
     initComponent: function() {
         this.callParent(arguments);
-        //HACK! Because currently no way to know after tree displays items
-        this.down('#rallytree1').on('add', Ext.Function.createBuffered(this._afterTreeRender, 1000, this));
+        //add the click handler to tree rows when they are added to the tree
+        this.down('#rallytree1').on('add', this._onTreeRowAdd, this);
     },
 
     launch: function () {
-
-		
+        this.startTime = '2012-03-01T00:00:00Z';
         this.chartQuery = {
             find:{
                 _Type:'HierarchicalRequirement',
                 Children:null,
                 _ValidFrom: {
-                    $gte: "2012-03-01T00:00:00Z"
+                    $gte: this.startTime
                 }
             }
         };
@@ -53,38 +77,50 @@ Ext.define('BurnChartApp', {
 
     },
 
-    _afterChartConfigBuilt: function (chartConfig) {
-        var chartCmp = this.down('#chartCmp');
+    _afterChartConfigBuilt: function (success, chartConfig) {
+        this._removeChartComponent();
+        if (success){
+            this.add({
+                id: 'chartCmp',
+                xtype: 'highchart',
+                flex: 1,
+                chartConfig: chartConfig
+            });
+        } else {
+            var formattedId = this.selectedRowRecord.get('FormattedID');
+            this.add({
+                id: 'chartCmp',
+                xtype: 'component',
+                html: '<div>No user story data found for ' + formattedId + ' starting from: ' + this.startTime + '</div>'
+            });
+        }
+    },
 
+    _removeChartComponent: function() {
+        var chartCmp = this.down('#chartCmp');
         if (chartCmp) {
             this.remove(chartCmp);
         }
-        this.add({
-            id: 'chartCmp',
-            xtype: 'highchart',
-            flex: 1,
-            chartConfig: chartConfig
-        });
     },
 
-    _afterTreeRender: function() {
-        Ext.Array.each(
-            Ext.DomQuery.select('.pill .textContent'),
-            function(treeRowTextEl) {
-                Ext.fly(treeRowTextEl).on('click', this._onTreeRowClick, this, {stopEvent: true});
-            },
-            this
-        );
+    _onTreeRowAdd: function(tree, treeRow) {
+        treeRow.on('afterrender', this._afterTreeRowRendered, this);
+    },
+
+    _afterTreeRowRendered: function(treeRow) {
+        treeRow.getEl().on('click', this._onTreeRowClick, this, {stopEvent: true});
     },
 
     _onTreeRowClick: function(event, treeRowTextEl) {
         var treeItem = Ext.getCmp(Ext.get(treeRowTextEl).findParentNode('.treeItem').id);
-        var itemId = treeItem.getRecord().get('ObjectID');
-        var title = treeItem.getRecord().get('FormattedID') + ' - ' + treeItem.getRecord().get('Name');
-        this._refreshChart(itemId, title);
+        var treeRowRecord = treeItem.getRecord();
+        var itemId = treeRowRecord.get('ObjectID');
+        var title = treeRowRecord.get('FormattedID') + ' - ' + treeRowRecord.get('Name');
+        this._refreshChart(treeRowRecord, itemId, title);
     },
 
-    _refreshChart: function(itemId, title) {
+    _refreshChart: function(treeRowRecord, itemId, title) {
+        this.selectedRowRecord = treeRowRecord;
         this.chartQuery.find._ItemHierarchy = itemId;
         this.chartConfigBuilder.build(this.chartQuery, title, Ext.bind(this._afterChartConfigBuilt, this));
     }

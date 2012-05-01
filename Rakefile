@@ -168,7 +168,7 @@ module Rally
     class AppConfig
       SDK_RELATIVE_URL = "/apps"
       SDK_ABSOLUTE_URL = "https://rally1.rallydev.com/apps"
-      SDK_FILE = "sdk.js"
+      SDK_FILE = "sdk-debug.js"
       SDK_DEBUG_FILE = "sdk-debug.js"
 
       attr_reader :name, :sdk_version
@@ -376,6 +376,8 @@ HTML_DEBUG_TPL = <<-END
     <script type="text/javascript" src="https://raw.github.com/JoeKuan/Highcharts_ExtJs_4/master/Chart/ux/HighChart.js"></script>
     
     <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/lumenize/deploy/lumenize.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/burncalculator.js"></script>
+
     
     <script type="text/javascript">
     
@@ -408,7 +410,8 @@ HTML_TPL = <<-END
     <script type="text/javascript" src="http://code.highcharts.com/2.1.6/highcharts.js"></script>
     <script type="text/javascript" src="https://raw.github.com/JoeKuan/Highcharts_ExtJs_4/master/Chart/ux/HighChart.js"></script>
     
-    <script type="text/javascript" src="https://raw.github.com/lmaccherone/Lumenize/master/deploy/lumenize.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/lumenize/deploy/lumenize.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/burncalculator.js"></script>
     
     
     <script type="text/javascript">

@@ -3,189 +3,18 @@
 <head>
     <title>BurnChartApp</title>
     
-    <script type="text/javascript" src="/apps/2.0p/sdk.js"></script>
+    <script type="text/javascript" src="/apps/2.0p/sdk-debug.js"></script>
     
     <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
     <script type="text/javascript" src="http://code.highcharts.com/2.1.6/highcharts.js"></script>
     <script type="text/javascript" src="https://raw.github.com/JoeKuan/Highcharts_ExtJs_4/master/Chart/ux/HighChart.js"></script>
     
-    <script type="text/javascript" src="https://raw.github.com/lmaccherone/Lumenize/master/deploy/lumenize.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/lumenize/deploy/lumenize.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/RallyApps/rally_analytics/master/lib/burncalculator.js"></script>
     
     
     <script type="text/javascript">
         Rally.onReady(function() {
-            (function() {
-              var ChartTime, burnCalculator, lumenize, root, timeSeriesCalculator, utils;
-              var __hasProp = Object.prototype.hasOwnProperty, __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (__hasProp.call(this, i) && this[i] === item) return i; } return -1; };
-            
-              root = this;
-            
-              if (typeof exports !== "undefined" && exports !== null) {
-                lumenize = require('../lib/lumenize');
-              } else {
-                lumenize = require('/lumenize');
-              }
-            
-              ChartTime = lumenize.ChartTime, timeSeriesCalculator = lumenize.timeSeriesCalculator;
-            
-              utils = lumenize.utils;
-            
-              burnCalculator = function(results, config) {
-                /*
-                  Takes the "results" from a query to Rally's Analytics API (or similar MVCC-based implementation)
-                  and returns the series for burn charts.
-                */
-                var aggregationAtArray, aggregations, categories, ct, derivedFields, f, field, granularity, i, idealData, idealStep, listOfAtCTs, maxTaskEstimateTotal, name, originalPointCount, pastEnd, rangeSpec, s, series, seriesFound, seriesNames, start, timeSeriesCalculatorConfig, type, yAxis, _i, _len, _ref, _ref2, _ref3;
-                if (config.granularity != null) {
-                  granularity = config.granularity;
-                } else {
-                  granularity = 'day';
-                }
-                start = config.start;
-                if (utils.type(start) === 'string') {
-                  start = new ChartTime(start, granularity, config.workspaceConfiguration.TimeZone);
-                }
-                pastEnd = new ChartTime(results[results.length - 1]._ValidFrom, granularity, config.workspaceConfiguration.TimeZone).add(1);
-                rangeSpec = {
-                  workDays: config.workspaceConfiguration.WorkDays,
-                  holidays: config.holidays,
-                  start: start,
-                  pastEnd: pastEnd
-                };
-                if (config.upSeriesType == null) config.upSeriesType = 'Sums';
-                derivedFields = [];
-                if (config.upSeriesType === 'Points') {
-                  derivedFields.push({
-                    name: 'Accepted',
-                    f: function(row) {
-                      var _ref;
-                      if (_ref = row.ScheduleState, __indexOf.call(config.acceptedStates, _ref) >= 0) {
-                        return row.PlanEstimate;
-                      } else {
-                        return 0;
-                      }
-                    }
-                  });
-                } else if (config.upSeriesType === 'Story Count') {
-                  derivedFields.push({
-                    name: 'Accepted',
-                    f: function(row) {
-                      var _ref;
-                      if (_ref = row.ScheduleState, __indexOf.call(config.acceptedStates, _ref) >= 0) {
-                        return 1;
-                      } else {
-                        return 0;
-                      }
-                    }
-                  });
-                } else {
-                  console.error("Unrecognized upSeriesType: " + config.upSeriesType);
-                }
-                seriesNames = [];
-                aggregations = [];
-                _ref = config.series;
-                for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                  s = _ref[_i];
-                  seriesFound = true;
-                  switch (s) {
-                    case 'down':
-                      name = 'Task To Do (Hours)';
-                      f = '$sum';
-                      field = 'TaskRemainingTotal';
-                      yAxis = 0;
-                      type = 'column';
-                      break;
-                    case 'ideal':
-                      name = "Ideal (Hours)";
-                      f = '$sum';
-                      field = 'TaskEstimateTotal';
-                      yAxis = 0;
-                      type = 'line';
-                      break;
-                    case 'up':
-                      name = "Accepted (" + config.upSeriesType + ")";
-                      f = '$sum';
-                      field = 'Accepted';
-                      yAxis = 1;
-                      type = 'column';
-                      break;
-                    case 'scope':
-                      name = "Scope (" + config.upSeriesType + ")";
-                      if (config.upSeriesType === 'Story Count') {
-                        f = '$count';
-                      } else if (config.upSeriesType === 'Points') {
-                        f = '$sum';
-                      }
-                      field = 'PlanEstimate';
-                      yAxis = 1;
-                      type = 'line';
-                      break;
-                    default:
-                      if ((s.name != null) && (s.f != null) && (s.field != null)) {
-                        name = s.name;
-                        f = s.f;
-                        field = s.field;
-                        type = 'column';
-                      } else {
-                        seriesFound = false;
-                        console.error("Unrecognizable series: " + s);
-                      }
-                  }
-                  if (seriesFound) {
-                    aggregations.push({
-                      name: name,
-                      as: name,
-                      f: f,
-                      field: field,
-                      yAxis: yAxis,
-                      type: type
-                    });
-                    seriesNames.push(name);
-                  }
-                }
-                timeSeriesCalculatorConfig = {
-                  rangeSpec: rangeSpec,
-                  derivedFields: derivedFields,
-                  aggregations: aggregations,
-                  timezone: config.workspaceConfiguration.TimeZone,
-                  snapshotValidFromField: '_ValidFrom',
-                  snapshotValidToField: '_ValidTo',
-                  snapshotUniqueID: 'ObjectID'
-                };
-                _ref2 = lumenize.timeSeriesCalculator(results, timeSeriesCalculatorConfig), listOfAtCTs = _ref2.listOfAtCTs, aggregationAtArray = _ref2.aggregationAtArray;
-                series = lumenize.aggregationAtArray_To_HighChartsSeries(aggregationAtArray, aggregations);
-                categories = (function() {
-                  var _j, _len2, _results;
-                  _results = [];
-                  for (_j = 0, _len2 = listOfAtCTs.length; _j < _len2; _j++) {
-                    ct = listOfAtCTs[_j];
-                    _results.push("" + (ct.toString()));
-                  }
-                  return _results;
-                })();
-                originalPointCount = categories.length;
-                if (__indexOf.call(config.series, "Ideal") >= 0) {
-                  i = 0;
-                  while (series[i].name.indexOf("Ideal") < 0) {
-                    i++;
-                  }
-                  idealData = series[i].data;
-                  maxTaskEstimateTotal = lumenize.functions.$max(idealData);
-                  idealStep = maxTaskEstimateTotal / (originalPointCount - 1);
-                  for (i = 0, _ref3 = originalPointCount - 2; 0 <= _ref3 ? i <= _ref3 : i >= _ref3; 0 <= _ref3 ? i++ : i--) {
-                    idealData[i] = (originalPointCount - 1 - i) * idealStep;
-                  }
-                  idealData[originalPointCount - 1] = 0;
-                }
-                return {
-                  categories: categories,
-                  series: series
-                };
-              };
-            
-              root.burnCalculator = burnCalculator;
-            
-            }).call(this);
             (function () {
             
                 Ext.define('Rally.app.analytics.BurnChartBuilder', {
@@ -196,6 +25,7 @@
             
                         this.chartTitle = chartTitle;
                         this.buildFinishedCallback = buildFinishedCallback;
+                        this.startTime = requestedQuery.find._ValidFrom.$gte; //TODO: better way to get/set this
                         this.query = {
                             find:Ext.encode(requestedQuery.find),
                             pagesize:10000
@@ -204,14 +34,25 @@
             
                         this.workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
             
-                        if (this.acceptedScheduleStateOid && this.releasedScheduleStateOid) {
+                        if (this.scheduleStateOidAccepted && this.scheduleStateOidReleased) {
                             this._queryAnalyticsApi();
                         } else {
-                            if (!this.acceptedScheduleStateOid) {
-                                this.acceptedScheduleStateOid = this.getAcceptedScheduleStateOid();
+                            //mark this component that its updating multiple ajax requests. See Rally.util.ComponentUpdatable mixin.
+                            var acceptedReqName = 'GetAcceptedScheduleStateOid';
+                            var releasedReqName = 'GetReleasedScheduleStateOid';
+                            //mark which requests need to be made
+                            if (!this.scheduleStateOidAccepted) {
+                                this.markUpdating(acceptedReqName);
                             }
-                            if (!this.releasedScheduleStateOid) {
-                                this.releasedScheduleStateOid = this.getReleasedScheduleStateOid();
+                            if (!this.scheduleStateOidReleased) {
+                                this.markUpdating(releasedReqName);
+                            }
+                            //now make requests
+                            if (!this.scheduleStateOidAccepted) {
+                                this._getScheduleStateOid('Accepted', acceptedReqName);
+                            }
+                            if (!this.scheduleStateOidReleased) {
+                                this._getScheduleStateOid('Released', releasedReqName);
                             }
                         }
             
@@ -233,168 +74,161 @@
                         });
                     },
             
-                    getAcceptedScheduleStateOid:function (callback) {
-                        this.markUpdating('BurnChartAcceptedScheduleState');
+                    _getScheduleStateOid:function (state, reqName) {
                         var workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
                         var project = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.project._ref);
-                        var analyticsScheduleStateQuery = "find={ScheduleState:'Accepted',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
+                        var analyticsScheduleStateQuery = "find={ScheduleState:'" + state + "',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
                         Ext.Ajax.request({
                             url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + analyticsScheduleStateQuery,
                             method:"GET",
                             success:function (response) {
                                 var results = JSON.parse(response.responseText).Results;
                                 if (results.length > 0) {
-                                    this.acceptedScheduleStateOid = results[0].ScheduleState;
+                                    this['scheduleStateOid' + state] = results[0].ScheduleState;
                                 }
-                                this.markUpdated('BurnChartAcceptedScheduleState', this._afterAllScheduleStateOidsReturned, this);
+                                this.markUpdated(reqName, this._afterAllScheduleStateOidsReturned, this);
                             },
                             scope:this
                         });
                     },
             
-                    getReleasedScheduleStateOid:function (acceptedScheduleStateOid, callback) {
-                        this.markUpdating('BurnChartReleasedScheduleState');
-                        var workspace = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.workspace._ref);
-                        var project = Rally.util.Ref.getOidFromRef(Rally.environment.getContext().context.scope.project._ref);
-                        var analyticsScheduleStateQuery = "find={ScheduleState:'Released',Project:" + project + "}&fields=['ScheduleState']&pagesize=1";
-                        Ext.Ajax.request({
-                            url:"https://rally1.rallydev.com/analytics/1.27/" + workspace + "/artifact/snapshot/query.js?" + analyticsScheduleStateQuery,
-                            method:"GET",
-                            success:function (response) {
-                                this.releasedScheduleStateOid = JSON.parse(response.responseText).Results[0].ScheduleState;
-                                this.markUpdated('BurnChartReleasedScheduleState', this._afterAllScheduleStateOidsReturned, this);
-                            },
-                            scope:this
-                        });
-                    },
                     _afterQueryReturned:function (queryResultsData) {
+                        if (queryResultsData.TotalResultCount > 0) {
+                            this._buildChartConfigAndCallback(queryResultsData);
+                        } else {
+                            this.buildFinishedCallback(false);
+                        }
+                    },
+            
+                    _buildChartConfigAndCallback: function(queryResultsData) {
                         var lumenize = require('./lumenize');
-                        var contextWorkspaceConfig = Rally.environment.getContext().context.scope.workspace.WorkspaceConfiguration;
-                        var workspaceConfiguration = {
-                            // Need to grab from Rally for this user
-                            DateFormat:contextWorkspaceConfig.DateFormat,
-                            DateTimeFormat:contextWorkspaceConfig.DateTimeFormat,
-                            //TODO: Have context code fetch these values for the workspace config, instead of hardcoding them
-                            IterationEstimateUnitName:'Points',
-                            // !TODO: Should we use this?
-                            ReleaseEstimateUnitName:'Points',
-                            TaskUnitName:'Hours',
-                            TimeTrackerEnabled:true,
-                            TimeZone:'America/Denver',
-                            WorkDays:'Sunday,Monday,Tuesday,Wednesday,Thursday,Friday'
-                            // They work on Sundays
-                        };
+                            var contextWorkspaceConfig = Rally.environment.getContext().context.scope.workspace.WorkspaceConfiguration;
+                            var workspaceConfiguration = {
+                                // Need to grab from Rally for this user
+                                DateFormat:contextWorkspaceConfig.DateFormat,
+                                DateTimeFormat:contextWorkspaceConfig.DateTimeFormat,
+                                //TODO: Have context code fetch these values for the workspace config, instead of hardcoding them
+                                IterationEstimateUnitName:'Points',
+                                // !TODO: Should we use this?
+                                ReleaseEstimateUnitName:'Points',
+                                TaskUnitName:'Hours',
+                                TimeTrackerEnabled:true,
+                                TimeZone:'America/Denver',
+                                WorkDays:'Sunday,Monday,Tuesday,Wednesday,Thursday,Friday'
+                                // They work on Sundays
+                            };
             
-                        var acceptedStates = [];
-                        if( this.acceptedScheduleStateOid ){
-                            acceptedStates.push( this.acceptedScheduleStateOid );
-                        }
-                        if( this.releasedScheduleStateOid ){
-                            acceptedStates.push( this.releasedScheduleStateOid );
-                        }
+                            var acceptedStates = [];
+                            if( this.scheduleStateOidAccepted ){
+                                acceptedStates.push( this.scheduleStateOidAccepted );
+                            }
+                            if( this.scheduleStateOidReleased ){
+                                acceptedStates.push( this.scheduleStateOidReleased );
+                            }
             
-                        var burnConfig = {
-                            workspaceConfiguration:workspaceConfiguration,
-                            upSeriesType:'Story Count',
-                            // 'Points' or 'Story Count'
-                            series:[
-                                'up',
-                                'scope'
-                            ],
+                            var burnConfig = {
+                                workspaceConfiguration:workspaceConfiguration,
+                                upSeriesType:'Story Count',
+                                // 'Points' or 'Story Count'
+                                series:[
+                                    'up',
+                                    'scope'
+                                ],
             
-                            acceptedStates:acceptedStates,
-                            start:"2012-03-01T00:00:00Z",
-                            // Calculated either by inspecting results or via configuration. pastEnd is automatically the last date in results
-                            holidays:[
-                                {
-                                    month:12,
-                                    day:25
-                                },
-                                {
-                                    year:2011,
-                                    month:11,
-                                    day:26
-                                },
-                                {
-                                    year:2011,
-                                    month:1,
-                                    day:5
-                                }
-                            ]
-                        };
-            
-                        lumenize.ChartTime.setTZPath("");
-                        var tscResults = burnCalculator(queryResultsData.Results, burnConfig);
-            
-                        var categories = tscResults.categories;
-                        var series = tscResults.series;
-                        var chartConfiguration = {
-                            chart:{
-                                defaultSeriesType:'column'
-                            },
-                            credits:{
-                                enabled:false
-                            },
-                            title:{
-                                text:this.chartTitle
-                            },
-                            subtitle:{
-                                text:''
-                            },
-                            xAxis:{
-                                categories:categories,
-                                tickmarkPlacement:'on',
-                                tickInterval:Math.floor(categories.length / 13) + 1,
-                                // set as a function of the length of categories
-                                title:{
-                                    enabled:false
-                                }
-                            },
-                            yAxis:[
-                                {
-                                    title:{
-                                        text:'Hours'
+                                acceptedStates:acceptedStates,
+                                start:this.startTime,
+                                // Calculated either by inspecting results or via configuration. pastEnd is automatically the last date in results
+                                holidays:[
+                                    {
+                                        month:12,
+                                        day:25
                                     },
-                                    labels:{
-                                        formatter:function () {
-                                            return this.value / 1;
-                                        }
+                                    {
+                                        year:2011,
+                                        month:11,
+                                        day:26
                                     },
-                                    min:0
-                                },
-                                {
-                                    title:{
-                                        text:burnConfig.upSeriesType
-                                    },
-                                    opposite:true,
-                                    labels:{
-                                        formatter:function () {
-                                            return this.value / 1;
-                                        }
-                                    },
-                                    min:0
-                                }
-                            ],
-                            tooltip:{
-                                formatter:function () {
-                                    return '' + this.x + '<br />' + this.series.name + ': ' + this.y;
-                                }
-                            },
-                            plotOptions:{
-                                column:{
-                                    stacking:null,
-                                    lineColor:'#666666',
-                                    lineWidth:1,
-                                    marker:{
-                                        lineWidth:1,
-                                        lineColor:'#666666'
+                                    {
+                                        year:2011,
+                                        month:1,
+                                        day:5
                                     }
-                                }
-                            },
-                            series:series
-                        };
+                                ]
+                            };
             
-                        this.buildFinishedCallback(chartConfiguration);
+                            lumenize.ChartTime.setTZPath("");
+                            var tscResults = burnCalculator(queryResultsData.Results, burnConfig);
+            
+                            var categories = tscResults.categories;
+                            var series = tscResults.series;
+                            var chartConfiguration = {
+                                chart:{
+                                    defaultSeriesType:'column',
+                                    zoomType: 'xy'
+                                },
+                                credits:{
+                                    enabled:false
+                                },
+                                title:{
+                                    text:this.chartTitle
+                                },
+                                subtitle:{
+                                    text:''
+                                },
+                                xAxis:{
+                                    categories:categories,
+                                    tickmarkPlacement:'on',
+                                    tickInterval:Math.floor(categories.length / 13) + 1,
+                                    // set as a function of the length of categories
+                                    title:{
+                                        enabled:false
+                                    }
+                                },
+                                yAxis:[
+                                    {
+                                        title:{
+                                            text:'Hours'
+                                        },
+                                        labels:{
+                                            formatter:function () {
+                                                return this.value / 1;
+                                            }
+                                        },
+                                        min:0
+                                    },
+                                    {
+                                        title:{
+                                            text:burnConfig.upSeriesType
+                                        },
+                                        opposite:true,
+                                        labels:{
+                                            formatter:function () {
+                                                return this.value / 1;
+                                            }
+                                        },
+                                        min:0
+                                    }
+                                ],
+                                tooltip:{
+                                    formatter:function () {
+                                        return '' + this.x + '<br />' + this.series.name + ': ' + this.y;
+                                    }
+                                },
+                                plotOptions:{
+                                    column:{
+                                        stacking:null,
+                                        lineColor:'#666666',
+                                        lineWidth:1,
+                                        marker:{
+                                            lineWidth:1,
+                                            lineColor:'#666666'
+                                        }
+                                    }
+                                },
+                                series:series
+                            };
+            
+                            this.buildFinishedCallback(true, chartConfiguration);
                     }
                 });
             })();            Ext.define('BurnChartApp', {
@@ -424,26 +258,50 @@
                             if(record.get('Children') && record.get('Children').length > 0){
                                 return 'Parent';
                             }
+                        },
+                        topLevelStoreConfig: {
+                            listeners: {
+                                beforeload: function(tree) {
+                                    tree.getEl().mask();
+                                },
+                                load: function(tree) {
+                                    tree.getEl().unmask();
+                                }
+                            }
+                        },
+                        //override
+                        drawEmptyMsg: function(){
+                            if (Ext.getCmp('chartCmp')) {
+                                Ext.getCmp('chartCmp').destroy();
+                            }
+                            this.add({
+                                xtype: 'component',
+                                html: '<p> No Portfolio Items within the currently scoped project(s).</p>'
+                            });
                         }
+                    },
+                    {
+                        id: 'chartCmp',
+                        xtype: 'component',
+                        html: '<div>Choose a Portfolio Item from the list to see its burn chart.</div>'
                     }
             
                 ],
             
                 initComponent: function() {
                     this.callParent(arguments);
-                    //HACK! Because currently no way to know after tree displays items
-                    this.down('#rallytree1').on('add', Ext.Function.createBuffered(this._afterTreeRender, 1000, this));
+                    //add the click handler to tree rows when they are added to the tree
+                    this.down('#rallytree1').on('add', this._onTreeRowAdd, this);
                 },
             
                 launch: function () {
-            
-            		
+                    this.startTime = '2012-03-01T00:00:00Z';
                     this.chartQuery = {
                         find:{
                             _Type:'HierarchicalRequirement',
                             Children:null,
                             _ValidFrom: {
-                                $gte: "2012-03-01T00:00:00Z"
+                                $gte: this.startTime
                             }
                         }
                     };
@@ -452,38 +310,50 @@
             
                 },
             
-                _afterChartConfigBuilt: function (chartConfig) {
-                    var chartCmp = this.down('#chartCmp');
+                _afterChartConfigBuilt: function (success, chartConfig) {
+                    this._removeChartComponent();
+                    if (success){
+                        this.add({
+                            id: 'chartCmp',
+                            xtype: 'highchart',
+                            flex: 1,
+                            chartConfig: chartConfig
+                        });
+                    } else {
+                        var formattedId = this.selectedRowRecord.get('FormattedID');
+                        this.add({
+                            id: 'chartCmp',
+                            xtype: 'component',
+                            html: '<div>No user story data found for ' + formattedId + ' starting from: ' + this.startTime + '</div>'
+                        });
+                    }
+                },
             
+                _removeChartComponent: function() {
+                    var chartCmp = this.down('#chartCmp');
                     if (chartCmp) {
                         this.remove(chartCmp);
                     }
-                    this.add({
-                        id: 'chartCmp',
-                        xtype: 'highchart',
-                        flex: 1,
-                        chartConfig: chartConfig
-                    });
                 },
             
-                _afterTreeRender: function() {
-                    Ext.Array.each(
-                        Ext.DomQuery.select('.pill .textContent'),
-                        function(treeRowTextEl) {
-                            Ext.fly(treeRowTextEl).on('click', this._onTreeRowClick, this, {stopEvent: true});
-                        },
-                        this
-                    );
+                _onTreeRowAdd: function(tree, treeRow) {
+                    treeRow.on('afterrender', this._afterTreeRowRendered, this);
+                },
+            
+                _afterTreeRowRendered: function(treeRow) {
+                    treeRow.getEl().on('click', this._onTreeRowClick, this, {stopEvent: true});
                 },
             
                 _onTreeRowClick: function(event, treeRowTextEl) {
                     var treeItem = Ext.getCmp(Ext.get(treeRowTextEl).findParentNode('.treeItem').id);
-                    var itemId = treeItem.getRecord().get('ObjectID');
-                    var title = treeItem.getRecord().get('FormattedID') + ' - ' + treeItem.getRecord().get('Name');
-                    this._refreshChart(itemId, title);
+                    var treeRowRecord = treeItem.getRecord();
+                    var itemId = treeRowRecord.get('ObjectID');
+                    var title = treeRowRecord.get('FormattedID') + ' - ' + treeRowRecord.get('Name');
+                    this._refreshChart(treeRowRecord, itemId, title);
                 },
             
-                _refreshChart: function(itemId, title) {
+                _refreshChart: function(treeRowRecord, itemId, title) {
+                    this.selectedRowRecord = treeRowRecord;
                     this.chartQuery.find._ItemHierarchy = itemId;
                     this.chartConfigBuilder.build(this.chartQuery, title, Ext.bind(this._afterChartConfigBuilt, this));
                 }
@@ -502,6 +372,14 @@
         
         .rallytree {
             overflow: auto;
+        }
+        
+        .treeItem .pill .row-action {
+            display: none;
+        }
+        
+        .treeItem .pill {
+            cursor: pointer;
         }
     </style>
 </head>

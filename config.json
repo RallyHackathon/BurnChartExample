@@ -3,7 +3,6 @@
     "className":"BurnChartApp",
     "sdk":"2.0p",
     "javascript":[
-        "js/burncalculator.js",
         "js/BurnChartBuilder.js",
         "js/App.js"
     ],
